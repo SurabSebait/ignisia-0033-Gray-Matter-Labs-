@@ -3,7 +3,7 @@ Vector-Based RAG Pipeline using Chroma
 ========================================
 Stack:
   LLM        : Google Gemini (GOOGLE_API_KEY)
-  Embeddings : Qwen/Qwen3-VL-Embedding-8B via HuggingFace Inference API (HUGGINGFACE_API_KEY)
+  Embeddings : BAAI/bge-small-en-v1.5 (HuggingFace)
   Vector DB  : Chroma (persistent local storage)
   Framework  : LangChain
 
@@ -12,32 +12,31 @@ Supported file types: PDF, DOCX, XLSX, TXT
 
 import os
 import re
-import json
 import hashlib
 import numpy as np
 from pathlib import Path
-from dataclasses import dataclass, field
 from typing import List, Dict, Optional, Tuple
+
+# ── Load System Prompt from external file ──────────────────────────────────────
+PROMPT_FILE = Path(__file__).parent / "system_prompt.txt"
+if PROMPT_FILE.exists():
+    SYSTEM_PROMPT = PROMPT_FILE.read_text(encoding="utf-8")
+else:
+    print(f"[Warning] system_prompt.txt not found at {PROMPT_FILE}")
+    SYSTEM_PROMPT = "You are a precise document question-answering assistant."
 
 # ── LangChain imports ──────────────────────────────────────────────────────────
 from langchain_core.documents import Document
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
-from langchain_core.runnables import RunnablePassthrough, RunnableLambda
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_chroma import Chroma
 from langchain_community.embeddings import HuggingFaceEmbeddings
 
-PROMPT_FILE = Path(__file__).parent / "system_prompt1.txt"
-if PROMPT_FILE.exists():
-    SYSTEM_PROMPT = PROMPT_FILE.read_text(encoding="utf-8")
-else:
-    print(f"[Warning] system_prompt1.txt not found at {PROMPT_FILE}")
-    SYSTEM_PROMPT = "You are a precise document question-answering assistant."
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 1. DOCUMENT LOADERS (Same as PageIndex)
+# 1. DOCUMENT LOADERS
 # ══════════════════════════════════════════════════════════════════════════════
 
 def load_pdf(path: str) -> List[Document]:
@@ -97,6 +96,7 @@ def load_xlsx(path: str) -> List[Document]:
 
 
 def load_txt(path: str) -> List[Document]:
+    """Plain text loader."""
     return [Document(
         page_content=Path(path).read_text(errors="ignore"),
         metadata={"source": Path(path).name, "page": 1, "type": "txt"}
@@ -128,7 +128,7 @@ def load_documents(file_paths: List[str]) -> List[Document]:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 2. EMBEDDING ENGINE (Same as PageIndex)
+# 2. EMBEDDING ENGINE
 # ══════════════════════════════════════════════════════════════════════════════
 
 class QwenEmbeddingEngine:
@@ -138,7 +138,7 @@ class QwenEmbeddingEngine:
     Falls back to sentence-transformers if specified model unavailable.
     """
 
-    MODEL = "BAAI/bge-small-en-v1.5"  # Fast, reliable model
+    MODEL = "BAAI/bge-small-en-v1.5"
 
     def __init__(self, api_key: Optional[str] = None, batch_size: int = 32):
         self.batch_size = batch_size
@@ -203,10 +203,8 @@ class VectorRAG:
 
     Usage:
         rag = VectorRAG(persist_dir="./chroma_db")
-        rag.ingest(["policy.pdf", "data.xlsx", "emails.docx"])
+        rag.ingest(["policy.pdf", "data.xlsx"])
         result = rag.query("What is the ambient pallet storage rate?")
-        print(result["answer"])
-        print(result["sources"])
     """
 
     def __init__(
@@ -256,8 +254,6 @@ class VectorRAG:
         )
         print(f"[VectorDB] Chroma initialized at {self.persist_dir}")
 
-    # ── Ingestion ──────────────────────────────────────────────────────────────
-
     def ingest(self, file_paths: List[str]) -> Dict:
         """
         Load → split → embed → index all documents into Chroma.
@@ -282,12 +278,11 @@ class VectorRAG:
 
         print(f"[Ingest] {len(raw_docs)} pages → {len(all_lc_chunks)} chunks")
 
-        # Add documents to Chroma (embeddings computed automatically)
+        # Add documents to Chroma
         print(f"[Ingest] Adding {len(all_lc_chunks)} chunks to Chroma...")
         
         ids = []
         for idx, chunk in enumerate(all_lc_chunks):
-            # Create unique ID for each chunk
             uid_raw = f"{chunk.metadata.get('source')}|{chunk.metadata.get('page')}|{idx}|{chunk.page_content[:64]}"
             chunk_id = hashlib.sha256(uid_raw.encode()).hexdigest()[:16]
             ids.append(chunk_id)
@@ -304,9 +299,9 @@ class VectorRAG:
             self.vectorstore.persist()
             print(f"[Ingest] ✓ Persisted to disk")
         except Exception as e:
-            print(f"[Ingest] ⚠ Warning: Persist failed (data may still be saved): {e}")
+            print(f"[Ingest] ⚠ Warning: Persist failed: {e}")
         
-        # Reload vectorstore to ensure it's fresh
+        # Reload vectorstore
         try:
             self._init_vectorstore()
             print(f"[Ingest] ✓ Reloaded vectorstore")
@@ -319,33 +314,19 @@ class VectorRAG:
 
         return stats
 
-    # ── Retrieval ──────────────────────────────────────────────────────────────
-
     def retrieve(self, question: str) -> List[Tuple[Document, float]]:
         """Retrieve top-k chunks with similarity scores from Chroma."""
         results = self.vectorstore.similarity_search_with_score(question, k=self.top_k)
         return results
 
-    # ── Query ──────────────────────────────────────────────────────────────────
-
     def query(self, question: str) -> Dict:
         """
         Run full RAG: retrieve → build context → Gemini → parse citations.
-
-        Returns:
-            {
-              "question": str,
-              "answer":   str,           # Gemini answer with [SOURCE-N] inline
-              "sources":  List[Dict],    # cited sources with doc_id + page_num
-              "retrieved": List[Dict],   # all top-k chunks retrieved
-            }
         """
-        # Retrieve first
         results = self.retrieve(question)
         if not results:
             return {"question": question, "answer": "No documents indexed.", "sources": [], "retrieved": []}
 
-        # Build context
         context_blocks = []
         source_registry: Dict[str, Dict] = {}
         
@@ -368,7 +349,7 @@ class VectorRAG:
         formatted = QA_PROMPT.format_messages(context=context, question=question)
         answer = (self.llm | StrOutputParser()).invoke(formatted)
 
-        # Extract cited source labels from answer text
+        # Extract cited source labels
         cited_labels = sorted(set(re.findall(r'\[SOURCE-\d+\]', answer)))
         cited_sources = [source_registry[l] for l in cited_labels if l in source_registry]
 

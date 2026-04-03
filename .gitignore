@@ -53,3 +53,8 @@ temp_uploads/
 # Exports
 chroma_export.json
 *.json
+<<<<<<< HEAD
+=======
+
+temp/
+>>>>>>> 521a6354fe4b4d331adef5b3b1aacff6387b3f4a
