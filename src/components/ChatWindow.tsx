@@ -20,6 +20,8 @@ type ChatWindowProps = {
 export default function ChatWindow({ conversationId, currentUserId, role, onCitationsUpdate }: ChatWindowProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [isSending, setIsSending] = useState(false);
   const [input, setInput] = useState("");
   const [aiResponse, setAiResponse] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -51,19 +53,42 @@ export default function ChatWindow({ conversationId, currentUserId, role, onCita
   const sendMessage = async () => {
     if (!conversationId || !input.trim()) return;
 
+    const userMessage = input.trim();
+    setError(null);
+    setIsSending(true);
+    setAiLoading(true);
+
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ conversation_id: conversationId, message_text: input.trim(), sender_id: currentUserId })
+        body: JSON.stringify({ conversation_id: conversationId, message_text: userMessage, sender_id: currentUserId }),
       });
       if (!res.ok) throw new Error("Failed to send message");
 
       setInput("");
-      setAiResponse("");
+
+      const aiRes = await fetch("/api/ai-suggest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ conversation_id: conversationId, prompt: userMessage }),
+      });
+
+      if (!aiRes.ok) {
+        const errData = await aiRes.json().catch(() => null);
+        throw new Error(errData?.error || "AI request failed");
+      }
+
+      const aiData = await aiRes.json();
+      setAiResponse(aiData.response || "");
+      onCitationsUpdate?.(Array.isArray(aiData.citations) ? aiData.citations : []);
+
       await fetchChat();
     } catch (err) {
       setError((err as Error).message || "Unable to send message");
+    } finally {
+      setIsSending(false);
+      setAiLoading(false);
     }
   };
 
@@ -111,14 +136,27 @@ export default function ChatWindow({ conversationId, currentUserId, role, onCita
         )}
       </div>
 
-      <div className="flex gap-2">
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          className="flex-1 rounded-lg border border-gray-300 px-3 py-2"
-          placeholder="Type a message..."
-        />
-        <button onClick={sendMessage} className="rounded-lg bg-blue-600 px-3 text-white hover:bg-blue-700">Send</button>
+      <div className="flex flex-col gap-2">
+        <div className="flex gap-2">
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            disabled={isSending || aiLoading}
+            className="flex-1 rounded-lg border border-gray-300 px-3 py-2 disabled:cursor-not-allowed disabled:opacity-50"
+            placeholder="Type a message..."
+          />
+          <button
+            onClick={sendMessage}
+            disabled={isSending || aiLoading || !input.trim()}
+            className="rounded-lg bg-blue-600 px-3 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isSending ? "Sending..." : "Send"}
+          </button>
+        </div>
+
+        {aiLoading && (
+          <div className="text-sm text-gray-500 animate-pulse">AI is generating response from RAG backend...</div>
+        )}
       </div>
 
       {(role === "support" || role === "admin") && (
@@ -126,7 +164,7 @@ export default function ChatWindow({ conversationId, currentUserId, role, onCita
       )}
 
       {aiResponse && (
-        <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-2 text-sm text-indigo-900">AI draft: {aiResponse}</div>
+        <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-2 text-sm text-indigo-900">AI response: {aiResponse}</div>
       )}
     </div>
   );

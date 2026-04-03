@@ -126,6 +126,19 @@ export default function DashboardHome() {
             role={role}
             onCitationsUpdate={setCitations}
           />
+
+          <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-3">
+            <h3 className="text-sm font-semibold text-gray-700">AI Citations</h3>
+            {citations.length === 0 ? (
+              <p className="text-sm text-gray-500">No citations yet for this conversation.</p>
+            ) : (
+              <ul className="list-disc space-y-1 pl-4 text-sm text-gray-700">
+                {citations.map((c, i) => (
+                  <li key={i}>{c}</li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
       )}
 
