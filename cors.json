@@ -1,0 +1,8 @@
+[
+  {
+    "origin": ["http://localhost:3000", "https://grey-matter-labs.vercel.app"],
+    "method": ["GET", "PUT", "POST"],
+    "responseHeader": ["*"],
+    "maxAgeSeconds": 3600
+  }
+]
