@@ -38,7 +38,7 @@ $InstanceIP = "your-instance-public-ip"
 
 # Convert PEM to PPK for PuTTY (if needed)
 # Or use SSH directly (Windows 10+):
-ssh -i $KeyPath ubuntu@$InstanceIP
+  ssh -i $KeyPath ubuntu@$InstanceIP
 ```
 
 ---
@@ -48,7 +48,7 @@ ssh -i $KeyPath ubuntu@$InstanceIP
 ### 3.1 - Update System
 ```bash
 sudo apt update && sudo apt upgrade -y
-sudo apt install -y python3.12 python3.12-venv python3.12-dev
+sudo apt install -y python3.11 python3.11-venv python3.11-dev
 sudo apt install -y git nginx supervisor curl wget
 ```
 
@@ -56,18 +56,18 @@ sudo apt install -y git nginx supervisor curl wget
 ```bash
 cd /opt
 sudo git clone https://github.com/YOUR-USERNAME/your-repo.git meridian-rag
-sudo chown -R ubuntu:ubuntu meridian-rag
+  sudo chown -R ubuntu:ubuntu meridian-rag
 cd meridian-rag
 ```
 
 ### 3.3 - Create Virtual Environment
 ```bash
-python3.12 -m venv venv
+python3.11 -m venv venv
 source venv/bin/activate
 
 # Install dependencies
 pip install --upgrade pip setuptools wheel
-pip install -r requirements.txt
+pip install fastapi uvicorn python-dotenv pydantic numpy chromadb langchain-core langchain-google-genai langchain-chroma langchain-community langchain-text-splitters huggingface_hub openpyxl python-docx PyMuPDF google-generativeai starlette python-multipart requests gunicorn uvicorn sentence-transformers
 
 # Verify FastAPI is installed
 pip list | grep -i fastapi
@@ -110,7 +110,7 @@ environment=PATH="/opt/meridian-rag/venv/bin"
 sudo supervisorctl reread
   sudo supervisorctl update
 sudo supervisorctl start fastapi-rag
-sudo supervisorctl status
+  sudo supervisorctl status
 ```
 
 Check logs:
