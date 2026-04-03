@@ -105,7 +105,17 @@ export async function POST(request: NextRequest) {
     .collection("tickets")
     .updateOne(
       { conversation_id: conversationId },
-      { $push: { messages: aiMessage }, $set: { updated_at: new Date() } },
+      {
+        $push: { messages: aiMessage },
+        $set: {
+          updated_at: new Date(),
+          issue: prompt,
+          relevant_context: (sources as any[])
+            .filter((source) => typeof source.doc_id === "string")
+            .map((source) => source.doc_id),
+          resolution: answer,
+        },
+      },
     );
 
   if (!updateResult.acknowledged) {

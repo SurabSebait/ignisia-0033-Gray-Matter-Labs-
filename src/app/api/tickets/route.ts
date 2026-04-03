@@ -54,6 +54,54 @@ export async function POST(request: NextRequest) {
   const conversationId = `conv_${uuidv4()}`;
   const now = new Date();
 
+  // Call RAG backend with the initial description
+  const ragServerUrl = process.env.RAG_MODEL_ENDPOINT || "";
+  let ragAnswer = "";
+  let ragSources: Array<{ doc_id?: string; page_num?: number }> = [];
+
+  if (ragServerUrl) {
+    try {
+      const ragRes = await fetch(ragServerUrl, {
+        method: "POST",
+        headers: {
+          accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ question: description }),
+      });
+
+      if (ragRes.ok) {
+        const ragData = await ragRes.json();
+        ragAnswer = String(ragData.answer || "");
+        ragSources = Array.isArray(ragData.sources) ? ragData.sources : [];
+      }
+    } catch (err) {
+      console.error("RAG call failed during ticket creation:", err);
+      // Continue without RAG data
+    }
+  }
+
+  const userMessage = {
+    message_id: uuidv4(),
+    conversation_id: conversationId,
+    sender_id: session.user.id,
+    message_text: description,
+    created_at: now,
+  };
+
+  const messages = [userMessage];
+
+  // Add RAG response as AI message if available
+  if (ragAnswer) {
+    messages.push({
+      message_id: uuidv4(),
+      conversation_id: conversationId,
+      sender_id: "support_ai",
+      message_text: ragAnswer,
+      created_at: new Date(),
+    });
+  }
+
   const ticket = {
     conversation_id: conversationId,
     user1_id: session.user.id,
@@ -63,15 +111,12 @@ export async function POST(request: NextRequest) {
     status: "open",
     created_at: now,
     updated_at: now,
-    messages: [
-      {
-        message_id: uuidv4(),
-        conversation_id: conversationId,
-        sender_id: session.user.id,
-        message_text: description,
-        created_at: now,
-      },
-    ],
+    issue: description,
+    relevant_context: ragSources
+      .filter((source) => typeof source.doc_id === "string")
+      .map((source) => source.doc_id),
+    resolution: ragAnswer,
+    messages,
   };
 
   const result = await client

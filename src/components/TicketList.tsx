@@ -10,6 +10,9 @@ type Ticket = {
   user1_id: string;
   user2_id?: string;
   created_at: string;
+  issue?: string;
+  relevant_context?: string[];
+  resolution?: string;
 };
 
 type TicketListProps = {
