@@ -29,11 +29,11 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_chroma import Chroma
 from langchain_community.embeddings import HuggingFaceEmbeddings
 
-PROMPT_FILE = Path(__file__).parent / "system_prompt.txt"
+PROMPT_FILE = Path(__file__).parent / "system_prompt1.txt"
 if PROMPT_FILE.exists():
     SYSTEM_PROMPT = PROMPT_FILE.read_text(encoding="utf-8")
 else:
-    print(f"[Warning] system_prompt.txt not found at {PROMPT_FILE}")
+    print(f"[Warning] system_prompt1.txt not found at {PROMPT_FILE}")
     SYSTEM_PROMPT = "You are a precise document question-answering assistant."
 
 # ══════════════════════════════════════════════════════════════════════════════
