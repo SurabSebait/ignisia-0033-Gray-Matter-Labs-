@@ -1,4 +1,3 @@
-
 # AI-Powered Customer Support Platform
 
 A production-grade customer support platform with AI-assisted responses, multi-role access, and Streamlit frontend.
@@ -18,18 +17,66 @@ A production-grade customer support platform with AI-assisted responses, multi-r
 
 ## Setup
 
-### Backend
+### 1) Create Python virtual environments
 
-1. Install dependencies: `pip install -r backend/requirements.txt`
-2. Set environment variables in `.env` (MongoDB URL, GCS credentials)
-3. Run: `uvicorn backend.main:app --reload`
+```powershell
+cd C:\Ignisia
+python -m venv .venv-backend
+.\.venv-backend\Scripts\Activate.ps1
+pip install -r backend/requirements.txt
 
-### Frontend
+# in separate shell for frontend
+python -m venv .venv-frontend
+.\.venv-frontend\Scripts\Activate.ps1
+pip install -r frontend/requirements.txt
+```
 
-1. Install dependencies: `pip install -r frontend/requirements.txt`
-2. Run user UI: `streamlit run frontend/user_ui.py`
-3. Run admin UI: `streamlit run frontend/admin_ui.py`
-4. Run support UI: `streamlit run frontend/support_ui.py`
+### 2) Create `.env` (root of repository)
+
+File: `C:\Ignisia\.env`
+
+```text
+MONGODB_URL=mongodb://localhost:27017
+DATABASE_NAME=customer_support
+GCS_BUCKET_NAME=your-bucket-name
+OPENAI_API_KEY=your-openai-api-key
+AI_MODEL=gpt-4.1
+AI_SERVICE_URL=
+ENABLE_AI_RESPONSE=true
+ENABLE_VECTOR_UPDATE=true
+```
+
+### 3) Run backend
+
+```powershell
+cd C:\Ignisia
+.\.venv-backend\Scripts\Activate.ps1
+uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+### 4) Run frontend apps
+
+```powershell
+cd C:\Ignisia
+.\.venv-frontend\Scripts\Activate.ps1
+streamlit run frontend/user_ui.py
+streamlit run frontend/admin_ui.py
+streamlit run frontend/support_ui.py
+```
+
+### 5) Validation
+
+- `GET http://localhost:8000/` should return API health object
+- `GET http://localhost:8000/tickets/` should return empty list after startup
+- `POST http://localhost:8000/ai/generate-response` should return `response` + `citations`
+
+---
+
+## ENV usage in backend
+
+- `backend/app/config/settings.py` reads `.env` automatically via `BaseSettings`
+- `backend/app/routers/ai.py` now imports `settings` and uses `openai_api_key`, `ai_model`
+- `backend/app/routers/vector.py` now uses `settings.gcs_bucket_name` and stores file metadata in `files`
 
 ## API Endpoints
 
