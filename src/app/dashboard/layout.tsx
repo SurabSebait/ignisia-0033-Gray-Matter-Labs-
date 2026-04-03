@@ -19,25 +19,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
                 <div className="p-6 text-xl font-bold border-b border-slate-800">
                     Service Portal
                 </div>
-                
-                <nav className="flex-1 p-4 space-y-2">
-                    <Link href="/dashboard" className="block p-3 rounded hover:bg-slate-800 transition">
-                        🏠 Home
-                    </Link>
-
-                    {/* Conditional Buttons based on Permissions */}
-                    {(perms.includes('crawler') || isAdmin) && (
-                        <Link href="/dashboard/crawler" className="block p-3 rounded hover:bg-slate-800 transition">
-                            🕷️ Web Crawler
-                        </Link>
-                    )}
-
-                    {(perms.includes('disposition') || isAdmin) && (
-                        <Link href="/dashboard/disposition" className="block p-3 rounded hover:bg-slate-800 transition">
-                            📊 Disposition Tool
-                        </Link>
-                    )}
-                </nav>
 
                 <div className="p-4 border-t border-slate-800">
                     <div className="text-xs text-slate-400 mb-2">Logged in as:</div>

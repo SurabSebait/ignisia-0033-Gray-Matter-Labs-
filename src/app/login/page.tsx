@@ -47,10 +47,10 @@ function LoginFormContent() {
         <div className='w-full max-w-md space-y-8 rounded-xl bg-white p-10 shadow-lg'>
             <div>
                 <h2 className='text-center text-3xl font-bold tracking-tight text-gray-900'>
-                    Web Crawler Portal
+                    Grey Matter Labs Portal
                 </h2>
                 <p className='mt-2 text-center text-sm text-gray-600'>
-                    Sign in to manage your crawler tasks
+                    Sign in to get your queries resolved
                 </p>
             </div>
             <form className='mt-8 space-y-6' onSubmit={handleSubmit}>

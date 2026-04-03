@@ -61,7 +61,7 @@ export default function DashboardHome() {
     <div className="p-8">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-gray-800">Dashboard</h1>
-        <SignOutButton />
+
       </div>
       <p className="mt-2 text-gray-600">Logged in as: {session.user.email} ({role})</p>
 

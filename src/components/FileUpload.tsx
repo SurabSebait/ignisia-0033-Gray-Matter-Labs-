@@ -35,7 +35,7 @@ export default function FileUpload({
     try {
       const contentType = file.type || "application/octet-stream";
 
-      const fileName = `${task}_${llm}_${userEmail}_${Date.now()}_${file.name}`;
+      const fileName = file.name;
 
       const res = await fetch("/api/gcs/get-signed-url", {
         method: "POST",
