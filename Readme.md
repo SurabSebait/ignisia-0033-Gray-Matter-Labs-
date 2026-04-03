@@ -46,7 +46,22 @@ ENABLE_AI_RESPONSE=true
 ENABLE_VECTOR_UPDATE=true
 ```
 
-### 3) Run backend
+### 3) Start MongoDB
+
+Ensure MongoDB is running locally on port 27017.
+
+### 4) Create initial users
+
+Start the backend first, then create users using PowerShell:
+
+```powershell
+# Register users via API
+Invoke-RestMethod -Method POST -Uri "http://localhost:8000/auth/register" -ContentType "application/json" -Body '{"username":"user1","password":"pass","role":"user"}'
+Invoke-RestMethod -Method POST -Uri "http://localhost:8000/auth/register" -ContentType "application/json" -Body '{"username":"admin1","password":"pass","role":"admin"}'
+Invoke-RestMethod -Method POST -Uri "http://localhost:8000/auth/register" -ContentType "application/json" -Body '{"username":"support1","password":"pass","role":"support"}'
+```
+
+### 5) Run backend
 
 ```powershell
 cd C:\Ignisia
@@ -54,7 +69,7 @@ cd C:\Ignisia
 uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### 4) Run frontend apps
+### 6) Run frontend apps
 
 ```powershell
 cd C:\Ignisia
@@ -64,11 +79,21 @@ streamlit run frontend/admin_ui.py
 streamlit run frontend/support_ui.py
 ```
 
-### 5) Validation
+### 7) Validation
 
 - `GET http://localhost:8000/` should return API health object
 - `GET http://localhost:8000/tickets/` should return empty list after startup
 - `POST http://localhost:8000/ai/generate-response` should return `response` + `citations`
+
+---
+
+## Authentication
+
+- **Users**: Login with username/password to access user portal
+- **Admins**: Login to upload files and manage knowledge base
+- **Support**: Login to view 3-panel ticket management interface
+
+Use the register endpoint to create users or hardcode in database for demo.
 
 ---
 

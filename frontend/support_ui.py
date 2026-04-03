@@ -4,6 +4,30 @@ import time
 
 st.title("Customer Support - Support Personnel Portal")
 
+# Login
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+    st.session_state.role = None
+
+if not st.session_state.logged_in:
+    st.header("Login")
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+    if st.button("Login"):
+        response = requests.post("http://localhost:8000/auth/login", json={"username": username, "password": password})
+        if response.status_code == 200:
+            data = response.json()
+            st.session_state.logged_in = True
+            st.session_state.role = data["role"]
+            st.rerun()
+        else:
+            st.error("Invalid credentials")
+    st.stop()
+
+if st.session_state.role != "support":
+    st.error("Access denied")
+    st.stop()
+
 # 3-panel layout
 col1, col2, col3 = st.columns([1, 2, 1])
 

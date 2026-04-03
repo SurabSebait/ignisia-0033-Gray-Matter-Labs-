@@ -4,8 +4,34 @@ import json
 
 st.title("Customer Support - User Portal")
 
-# Assume user_id is set, e.g., from auth
-user_id = "user123"  # Placeholder
+# Login
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+    st.session_state.role = None
+    st.session_state.username = None
+
+if not st.session_state.logged_in:
+    st.header("Login")
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+    if st.button("Login"):
+        response = requests.post("http://localhost:8000/auth/login", json={"username": username, "password": password})
+        if response.status_code == 200:
+            data = response.json()
+            st.session_state.logged_in = True
+            st.session_state.role = data["role"]
+            st.session_state.username = username
+            st.rerun()
+        else:
+            st.error("Invalid credentials")
+    st.stop()
+
+if st.session_state.role != "user":
+    st.error("Access denied")
+    st.stop()
+
+# Assume user_id is set
+user_id = st.session_state.username
 
 # Chat interface
 st.header("Chat with Support")
