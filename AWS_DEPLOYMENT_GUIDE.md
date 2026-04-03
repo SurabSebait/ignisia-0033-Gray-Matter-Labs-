@@ -108,7 +108,7 @@ environment=PATH="/opt/meridian-rag/venv/bin"
 ### 4.2 - Start Supervisor
 ```bash
 sudo supervisorctl reread
-sudo supervisorctl update
+  sudo supervisorctl update
 sudo supervisorctl start fastapi-rag
 sudo supervisorctl status
 ```
@@ -159,7 +159,7 @@ sudo rm /etc/nginx/sites-enabled/default
 sudo nginx -t
 
 # Restart Nginx
-sudo systemctl restart nginx
+  sudo systemctl restart nginx
 ```
 
 ---
@@ -184,7 +184,7 @@ sudo systemctl start certbot.timer
 ### Check Application Status
 ```bash
 # Application logs
-sudo supervisorctl status fastapi-rag
+  sudo supervisorctl status fastapi-rag
 tail -f /var/log/fastapi-rag.out.log
 
 # Nginx logs
