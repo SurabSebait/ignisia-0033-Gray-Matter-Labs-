@@ -30,6 +30,13 @@ if st.session_state.role != "user":
     st.error("Access denied")
     st.stop()
 
+# Logout
+if st.button("Logout"):
+    st.session_state.logged_in = False
+    st.session_state.role = None
+    st.session_state.username = None
+    st.rerun()
+
 # Assume user_id is set
 user_id = st.session_state.username
 

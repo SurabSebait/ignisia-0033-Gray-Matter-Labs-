@@ -1,7 +1,7 @@
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.models.user import UserCreate, User, LoginRequest, LoginResponse
 from passlib.context import CryptContext
-import jwt
+from jose import jwt
 from datetime import datetime, timedelta
 from app.config.settings import settings
 

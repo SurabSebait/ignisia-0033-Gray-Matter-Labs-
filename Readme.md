@@ -7,6 +7,11 @@ A production-grade customer support platform with AI-assisted responses, multi-r
 - **User Portal**: Create tickets and chat with support
 - **Admin Portal**: Upload documents (PDF, Excel, Email) to update knowledge base
 - **Support Personnel Portal**: 3-panel interface for managing tickets, chatting, and viewing citations
+- **Authentication**: Role-based login system (user/admin/support)
+- **Ticket Locking**: Prevent concurrent access to tickets
+- **File Ingestion Tracking**: Monitor document processing status
+- **Similar Tickets**: AI-powered suggestions for support agents
+- **Search & Filters**: Advanced ticket filtering in support portal
 
 ## Architecture
 
@@ -105,14 +110,21 @@ Use the register endpoint to create users or hardcode in database for demo.
 
 ## API Endpoints
 
+- `POST /auth/register` - Register user
+- `POST /auth/login` - Login user
 - `POST /tickets/` - Create ticket
 - `GET /tickets/` - List tickets
 - `GET /tickets/{id}` - Get ticket
 - `PATCH /tickets/{id}` - Update ticket
+- `PATCH /tickets/{id}/lock` - Lock ticket
+- `PATCH /tickets/{id}/unlock` - Unlock ticket
+- `GET /tickets/{id}/similar` - Get similar tickets
 - `POST /messages/{ticket_id}/messages` - Create message
 - `GET /messages/{ticket_id}/messages` - Get messages
 - `POST /ai/generate-response` - Generate AI response with citations
 - `POST /vector/update` - Update vector store (stub)
+- `POST /files/` - Create file record
+- `PATCH /files/{id}/status` - Update file status
 
 ## Database Schemas
 

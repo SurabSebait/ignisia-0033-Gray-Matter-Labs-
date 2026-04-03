@@ -7,6 +7,9 @@ class TicketBase(BaseModel):
     query: str
     status: Optional[str] = "open"
     priority: Optional[str] = "medium"
+    assigned_to: Optional[str] = None
+    locked_by: Optional[str] = None
+    locked_at: Optional[datetime] = None
 
 class TicketCreate(TicketBase):
     pass
@@ -14,6 +17,7 @@ class TicketCreate(TicketBase):
 class TicketUpdate(BaseModel):
     status: Optional[str]
     priority: Optional[str]
+    assigned_to: Optional[str]
 
 class Ticket(TicketBase):
     id: str

@@ -28,6 +28,12 @@ if st.session_state.role != "admin":
     st.error("Access denied")
     st.stop()
 
+# Logout
+if st.button("Logout"):
+    st.session_state.logged_in = False
+    st.session_state.role = None
+    st.rerun()
+
 st.header("Upload Files")
 
 uploaded_file = st.file_uploader("Choose a file", type=["pdf", "xlsx", "eml"])

@@ -1,7 +1,8 @@
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.models.ticket import TicketCreate, TicketUpdate, Ticket
-from datetime import datetime
+from datetime import datetime, timedelta
 from bson import ObjectId
+from fastapi import HTTPException
 
 class TicketService:
     def __init__(self, db: AsyncIOMotorDatabase):
@@ -34,6 +35,49 @@ class TicketService:
     async def update_ticket(self, ticket_id: str, update: TicketUpdate) -> Ticket:
         update_dict = update.dict(exclude_unset=True)
         update_dict["updated_at"] = datetime.utcnow()
+        result = await self.collection.update_one(
+            {"_id": ObjectId(ticket_id)}, {"$set": update_dict}
+        )
+        if result.modified_count:
+            return await self.get_ticket(ticket_id)
+        return None
+
+    async def lock_ticket(self, ticket_id: str, agent_id: str) -> Ticket:
+        ticket = await self.get_ticket(ticket_id)
+        if not ticket:
+            raise HTTPException(status_code=404, detail="Ticket not found")
+        
+        now = datetime.utcnow()
+        # Check if locked by another agent and not expired
+        if ticket.locked_by and ticket.locked_by != agent_id:
+            if ticket.locked_at and (now - ticket.locked_at) < timedelta(minutes=5):
+                raise HTTPException(status_code=409, detail="Ticket locked by another agent")
+        
+        update_dict = {
+            "locked_by": agent_id,
+            "locked_at": now,
+            "updated_at": now
+        }
+        result = await self.collection.update_one(
+            {"_id": ObjectId(ticket_id)}, {"$set": update_dict}
+        )
+        if result.modified_count:
+            return await self.get_ticket(ticket_id)
+        return None
+
+    async def unlock_ticket(self, ticket_id: str, agent_id: str) -> Ticket:
+        ticket = await self.get_ticket(ticket_id)
+        if not ticket:
+            raise HTTPException(status_code=404, detail="Ticket not found")
+        
+        if ticket.locked_by != agent_id:
+            raise HTTPException(status_code=403, detail="Not authorized to unlock")
+        
+        update_dict = {
+            "locked_by": None,
+            "locked_at": None,
+            "updated_at": datetime.utcnow()
+        }
         result = await self.collection.update_one(
             {"_id": ObjectId(ticket_id)}, {"$set": update_dict}
         )
