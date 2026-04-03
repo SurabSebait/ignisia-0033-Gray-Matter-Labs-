@@ -29,6 +29,12 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_chroma import Chroma
 from langchain_community.embeddings import HuggingFaceEmbeddings
 
+PROMPT_FILE = Path(__file__).parent / "system_prompt.txt"
+if PROMPT_FILE.exists():
+    SYSTEM_PROMPT = PROMPT_FILE.read_text(encoding="utf-8")
+else:
+    print(f"[Warning] system_prompt.txt not found at {PROMPT_FILE}")
+    SYSTEM_PROMPT = "You are a precise document question-answering assistant."
 
 # ══════════════════════════════════════════════════════════════════════════════
 # 1. DOCUMENT LOADERS (Same as PageIndex)
@@ -181,15 +187,7 @@ class QwenEmbeddingEngine:
 # ══════════════════════════════════════════════════════════════════════════════
 
 QA_PROMPT = ChatPromptTemplate.from_messages([
-    ("system", """You are a precise document question-answering assistant for Meridian Supply Chain Solutions.
-
-Answer the user's question using ONLY the provided source passages.
-Rules:
-- Cite each claim with its source label inline, e.g. [SOURCE-1].
-- If multiple sources support a claim, cite all of them.
-- If the answer is not in the sources, say: "I could not find this in the provided documents."
-- Be specific — include exact figures, dates, and policy names where relevant.
-- End your answer with a "## References" section listing each cited source."""),
+    ("system", SYSTEM_PROMPT),
     ("human", """Sources:
 {context}
 
