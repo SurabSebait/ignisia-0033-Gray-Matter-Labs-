@@ -1,10 +1,12 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from motor.motor_asyncio import AsyncIOMotorClient
 from app.models.ticket import TicketCreate, TicketUpdate, Ticket
 from app.services.ticket_service import TicketService
+from app.services.auth_service import get_current_user, get_current_user_optional, require_roles, require_role
 from app.db.connection import get_database
 from typing import List
 from pydantic import BaseModel
+from bson import ObjectId
 
 class SimilarTicket(BaseModel):
     ticket_id: str
@@ -14,29 +16,44 @@ class SimilarTicket(BaseModel):
 
 router = APIRouter()
 
-@router.post("/", response_model=Ticket)
-async def create_ticket(ticket: TicketCreate):
+@router.post("/", response_model=Ticket, dependencies=[Depends(require_role("user"))])
+async def create_ticket(ticket: TicketCreate, current_user: dict = Depends(get_current_user)):
     db = get_database()
     service = TicketService(db)
+    # Override user_id with authenticated user's username
+    ticket.user_id = current_user["username"]
     return await service.create_ticket(ticket)
 
 @router.get("/", response_model=list[Ticket])
-async def list_tickets(skip: int = 0, limit: int = 10):
+async def list_tickets(skip: int = 0, limit: int = 10, current_user: dict = Depends(get_current_user_optional)):
     db = get_database()
     service = TicketService(db)
-    return await service.list_tickets(skip, limit)
+    if current_user is None:
+        # Return empty list for unauthenticated users
+        return []
+    if current_user["role"] == "user":
+        # Users see only their tickets
+        return await service.list_user_tickets(current_user["user_id"], skip, limit)
+    else:
+        # Support/admin see all
+        return await service.list_tickets(skip, limit)
 
 @router.get("/{ticket_id}", response_model=Ticket)
-async def get_ticket(ticket_id: str):
+async def get_ticket(ticket_id: str, current_user: dict = Depends(get_current_user)):
     db = get_database()
     service = TicketService(db)
     ticket = await service.get_ticket(ticket_id)
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
+    
+    # Check permissions
+    if current_user["role"] == "user" and ticket.user_id != current_user["user_id"]:
+        raise HTTPException(status_code=403, detail="Not authorized to view this ticket")
+    
     return ticket
 
-@router.patch("/{ticket_id}", response_model=Ticket)
-async def update_ticket(ticket_id: str, ticket_update: TicketUpdate):
+@router.patch("/{ticket_id}", response_model=Ticket, dependencies=[Depends(require_roles(["support", "admin"]))])
+async def update_ticket(ticket_id: str, ticket_update: TicketUpdate, current_user: dict = Depends(get_current_user)):
     db = get_database()
     service = TicketService(db)
     ticket = await service.update_ticket(ticket_id, ticket_update)
@@ -44,20 +61,20 @@ async def update_ticket(ticket_id: str, ticket_update: TicketUpdate):
         raise HTTPException(status_code=404, detail="Ticket not found")
     return ticket
 
-@router.patch("/{ticket_id}/lock", response_model=Ticket)
-async def lock_ticket(ticket_id: str, agent_id: str):
+@router.patch("/{ticket_id}/lock", response_model=Ticket, dependencies=[Depends(require_roles(["support", "admin"]))])
+async def lock_ticket(ticket_id: str, agent_id: str, current_user: dict = Depends(get_current_user)):
     db = get_database()
     service = TicketService(db)
     return await service.lock_ticket(ticket_id, agent_id)
 
-@router.patch("/{ticket_id}/unlock", response_model=Ticket)
-async def unlock_ticket(ticket_id: str, agent_id: str):
+@router.patch("/{ticket_id}/unlock", response_model=Ticket, dependencies=[Depends(require_roles(["support", "admin"]))])
+async def unlock_ticket(ticket_id: str, agent_id: str, current_user: dict = Depends(get_current_user)):
     db = get_database()
     service = TicketService(db)
     return await service.unlock_ticket(ticket_id, agent_id)
 
-@router.get("/{ticket_id}/similar", response_model=List[SimilarTicket])
-async def get_similar_tickets(ticket_id: str):
+@router.get("/{ticket_id}/similar", response_model=List[SimilarTicket], dependencies=[Depends(require_roles(["support", "admin"]))])
+async def get_similar_tickets(ticket_id: str, current_user: dict = Depends(get_current_user)):
     db = get_database()
     service = TicketService(db)
     ticket = await service.get_ticket(ticket_id)

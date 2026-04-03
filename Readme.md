@@ -4,9 +4,16 @@ A production-grade customer support platform with AI-assisted responses, multi-r
 
 ## Features
 
+- **Unified Login Portal**: Single entry point with automatic role-based redirection
+- **Role-Based Access Control**: Secure JWT authentication with middleware protection
+- **Zendesk-Inspired UI**: Modern, responsive design with gradient headers and card-based layouts
 - **User Portal**: Create tickets and chat with support
 - **Admin Portal**: Upload documents (PDF, Excel, Email) to update knowledge base
 - **Support Personnel Portal**: 3-panel interface for managing tickets, chatting, and viewing citations
+- **Ticket Locking**: Prevent concurrent access to tickets
+- **File Ingestion Tracking**: Monitor document processing status
+- **Similar Tickets**: AI-powered suggestions for support agents
+- **Search & Filters**: Advanced ticket filtering in support portal
 - **Authentication**: Role-based login system (user/admin/support)
 - **Ticket Locking**: Prevent concurrent access to tickets
 - **File Ingestion Tracking**: Monitor document processing status
@@ -15,10 +22,30 @@ A production-grade customer support platform with AI-assisted responses, multi-r
 
 ## Architecture
 
-- **Backend**: FastAPI with async MongoDB (Motor)
-- **Frontend**: Streamlit for all UIs
-- **Database**: MongoDB
-- **AI Integration**: External RAG pipeline (not implemented here)
+The platform uses a **unified Streamlit frontend** and a **FastAPI backend** with JWT authentication and MongoDB.
+
+### Frontend Structure
+
+- `main.py`: Unified app with conditional rendering based on user role
+
+### Backend Structure
+
+- **Routers**: Modular API endpoints with role-based access control
+- **Services**: Business logic layer
+- **Models**: Pydantic data models
+- **Database**: MongoDB with optimized indexes
+
+### Security
+
+- JWT-based authentication with role validation
+- Role-based access control (User, Admin, Support)
+- Users can only access their own tickets
+- Support/Admin have restricted permissions
+
+- **Backend**: FastAPI with async MongoDB (Motor), JWT authentication middleware
+- **Frontend**: Single Streamlit app with role-based routing and Zendesk-inspired UI
+- **Database**: MongoDB with optimized indexes
+- **Authentication**: JWT tokens with role-based access control
 
 ## Setup
 
@@ -74,15 +101,15 @@ cd C:\Ignisia
 uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### 6) Run frontend apps
+### 6) Run frontend
 
 ```powershell
 cd C:\Ignisia
 .\.venv-frontend\Scripts\Activate.ps1
-streamlit run frontend/user_ui.py
-streamlit run frontend/admin_ui.py
-streamlit run frontend/support_ui.py
+streamlit run frontend/main.py
 ```
+
+The frontend will open at `http://localhost:8501` with the unified login and dashboard interface.
 
 ### 7) Validation
 

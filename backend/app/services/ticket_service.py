@@ -15,20 +15,31 @@ class TicketService:
         ticket_dict["updated_at"] = datetime.utcnow()
         ticket_dict["status"] = "open"
         result = await self.collection.insert_one(ticket_dict)
-        ticket_dict["_id"] = str(result.inserted_id)
+        ticket_dict["id"] = str(result.inserted_id)
+        ticket_dict.pop("_id", None)  # Remove _id if it exists
         return Ticket(**ticket_dict)
 
     async def list_tickets(self, skip: int, limit: int) -> list[Ticket]:
         tickets = []
         async for ticket in self.collection.find().skip(skip).limit(limit):
-            ticket["_id"] = str(ticket["_id"])
+            ticket["id"] = str(ticket["_id"])
+            ticket.pop("_id", None)
+            tickets.append(Ticket(**ticket))
+        return tickets
+
+    async def list_user_tickets(self, user_id: str, skip: int, limit: int) -> list[Ticket]:
+        tickets = []
+        async for ticket in self.collection.find({"user_id": user_id}).skip(skip).limit(limit):
+            ticket["id"] = str(ticket["_id"])
+            ticket.pop("_id", None)
             tickets.append(Ticket(**ticket))
         return tickets
 
     async def get_ticket(self, ticket_id: str) -> Ticket:
         ticket = await self.collection.find_one({"_id": ObjectId(ticket_id)})
         if ticket:
-            ticket["_id"] = str(ticket["_id"])
+            ticket["id"] = str(ticket["_id"])
+            ticket.pop("_id", None)
             return Ticket(**ticket)
         return None
 

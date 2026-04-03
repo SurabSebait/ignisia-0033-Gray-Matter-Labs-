@@ -1,12 +1,13 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from app.models.ai_response import AIResponseRequest, AIResponse
 from app.services.ai_service import AIService
+from app.services.auth_service import require_roles
 from app.db.connection import get_database
 from app.config.settings import settings
 
 router = APIRouter()
 
-@router.post("/generate-response", response_model=AIResponse)
+@router.post("/generate-response", response_model=AIResponse, dependencies=[Depends(require_roles(["support", "admin"]))])
 async def generate_response(request: AIResponseRequest):
     db = get_database()
     service = AIService(db)

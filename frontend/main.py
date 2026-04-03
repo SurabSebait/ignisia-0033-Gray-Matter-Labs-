@@ -11,7 +11,16 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for Zendesk-like styling
+# Helper function for API calls with auth
+def api_request(method, url, **kwargs):
+    headers = kwargs.get('headers', {})
+    if st.session_state.token:
+        headers['Authorization'] = f'Bearer {st.session_state.token}'
+    kwargs['headers'] = headers
+    kwargs['timeout'] = kwargs.get('timeout', 10)
+    return requests.request(method, url, **kwargs)
+
+# Custom CSS
 st.markdown("""
 <style>
     .main-header {
@@ -72,6 +81,8 @@ if "user" not in st.session_state:
     st.session_state.user = None
 if "role" not in st.session_state:
     st.session_state.role = None
+if "token" not in st.session_state:
+    st.session_state.token = None
 if "selected_ticket" not in st.session_state:
     st.session_state.selected_ticket = None
 if "tickets_cache" not in st.session_state:
@@ -102,7 +113,8 @@ def login_page():
                                 data = response.json()
                                 st.session_state.user = username
                                 st.session_state.role = data["role"]
-                                st.session_state.page = data["role"]  # user, admin, or support
+                                st.session_state.token = data["access_token"]
+                                st.session_state.page = data["role"]
                                 st.success(f"Welcome back, {username}!")
                                 time.sleep(1)
                                 st.rerun()
@@ -121,70 +133,89 @@ def user_ui():
         st.markdown('<div class="sidebar-content">', unsafe_allow_html=True)
         st.subheader(f"👋 Welcome, {st.session_state.user}")
         st.caption(f"Role: {st.session_state.role.title()}")
-        if st.button("🚪 Logout", use_container_width=True):
+        if st.button("🚪 Logout", use_container_width=True, key="user_logout"):
             logout()
         st.markdown('</div>', unsafe_allow_html=True)
     
-    # Main content
+    # Initialize messages
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
+    
+    # SECTION 1: Chat history (left) and tickets (right)
+    st.subheader("💬 Conversation & Tickets")
     col1, col2 = st.columns([2, 1])
     
     with col1:
-        st.subheader("💬 Start a Conversation")
-        
-        # Chat interface
-        if "messages" not in st.session_state:
-            st.session_state.messages = []
-        
-        # Display chat history
-        chat_container = st.container()
-        with chat_container:
+        st.write("**Chat History**")
+        if st.session_state.messages:
             for msg in st.session_state.messages:
                 if msg["role"] == "user":
                     st.markdown(f'<div class="chat-message chat-user">{msg["content"]}</div>', unsafe_allow_html=True)
                 else:
                     st.markdown(f'<div class="chat-message chat-agent">{msg["content"]}</div>', unsafe_allow_html=True)
-        
-        # Chat input
-        if prompt := st.chat_input("Type your message here..."):
-            # Create ticket if first message
-            if not st.session_state.messages:
-                ticket_data = {"user_id": st.session_state.user, "query": prompt}
-                response = requests.post("http://localhost:8000/tickets/", json=ticket_data)
-                if response.status_code == 200:
-                    ticket = response.json()
-                    st.session_state.current_ticket = ticket["id"]
-            
-            # Send message
-            if "current_ticket" in st.session_state:
-                message_data = {"sender_type": "user", "message": prompt}
-                requests.post(f"http://localhost:8000/messages/{st.session_state.current_ticket}/messages", json=message_data)
-                st.session_state.messages.append({"role": "user", "content": prompt})
-                st.rerun()
+        else:
+            st.info("No messages yet. Start a conversation below.")
     
     with col2:
-        st.subheader("📋 Your Tickets")
-        
-        # Fetch and display user's tickets
+        st.write("**Your Tickets**")
         try:
-            response = requests.get("http://localhost:8000/tickets/", timeout=5)
+            response = api_request("GET", "http://localhost:8000/tickets/")
             if response.status_code == 200:
                 tickets = response.json()
                 user_tickets = [t for t in tickets if t.get("user_id") == st.session_state.user]
                 
                 if user_tickets:
-                    for ticket in user_tickets[-5:]:  # Show last 5
+                    for ticket in user_tickets[-5:]:
                         status_class = f"status-{ticket['status']}"
                         st.markdown(f"""
                         <div class="ticket-card">
-                            <strong>Ticket #{ticket['id'][:8]}</strong><br>
+                            <strong>#{ticket['id'][:8]}</strong><br>
                             <span class="status-badge {status_class}">{ticket['status'].upper()}</span><br>
                             <small>{ticket['query'][:50]}...</small>
                         </div>
                         """, unsafe_allow_html=True)
                 else:
-                    st.info("No tickets yet. Start a conversation!")
-        except:
-            st.warning("Unable to load tickets")
+                    st.info("No tickets yet")
+            else:
+                st.error(f"API error: {response.status_code}")
+        except Exception as e:
+            st.error(f"Error loading tickets: {str(e)}")
+    
+    # SECTION 2: Chat input (OUTSIDE all containers)
+    st.markdown("---")
+    st.subheader("📝 Send Message")
+    
+    prompt = st.chat_input("Type your message...")
+    
+    if prompt:
+        # Create ticket if first message
+        if not st.session_state.messages:
+            ticket_data = {"user_id": st.session_state.user, "query": prompt}
+            try:
+                response = api_request("POST", "http://localhost:8000/tickets/", json=ticket_data)
+                if response.status_code == 200:
+                    ticket = response.json()
+                    st.session_state.current_ticket = ticket["id"]
+                    st.success(f"✅ Ticket created: {ticket['id'][:8]}")
+                else:
+                    st.error(f"❌ Failed to create ticket: {response.status_code}")
+                    return
+            except Exception as e:
+                st.error(f"❌ Error: {str(e)}")
+                return
+        
+        # Send message
+        if "current_ticket" in st.session_state:
+            message_data = {"sender_type": "user", "message": prompt}
+            try:
+                response = api_request("POST", f"http://localhost:8000/messages/{st.session_state.current_ticket}/messages", json=message_data)
+                if response.status_code == 200:
+                    st.session_state.messages.append({"role": "user", "content": prompt})
+                    st.rerun()
+                else:
+                    st.error(f"❌ Failed to send message: {response.status_code}")
+            except Exception as e:
+                st.error(f"❌ Error: {str(e)}")
 
 def admin_ui():
     st.markdown('<div class="main-header"><h2>⚙️ Admin Portal</h2><p>Manage knowledge base and system settings</p></div>', unsafe_allow_html=True)
@@ -278,23 +309,18 @@ def support_ui():
         
         st.subheader("📋 Tickets")
         
-        ticket_container = st.container()
-        with ticket_container:
-            for ticket in filtered_tickets[:10]:  # Limit display
-                locked = ticket.get("locked_by")
-                is_locked_by_me = locked == st.session_state.user
-                is_locked_by_other = locked and locked != st.session_state.user
-                
-                card_class = "ticket-card ticket-locked" if is_locked_by_other else "ticket-card"
-                status_class = f"status-{ticket['status']}"
-                
-                lock_icon = "🔒" if is_locked_by_other else "🔓" if is_locked_by_me else "📋"
-                
-                if st.button(f"{lock_icon} {ticket['query'][:35]}...", 
-                           key=f"ticket_{ticket['id']}", 
-                           disabled=is_locked_by_other,
-                           use_container_width=True):
-                    handle_ticket_selection(ticket['id'])
+        for ticket in filtered_tickets[:10]:  # Limit display
+            locked = ticket.get("locked_by")
+            is_locked_by_me = bool(locked == st.session_state.user)
+            is_locked_by_other = bool(locked and locked != st.session_state.user)
+            
+            lock_icon = "🔒" if is_locked_by_other else "🔓" if is_locked_by_me else "📋"
+            
+            if st.button(f"{lock_icon} {ticket['query'][:35]}...", 
+                       key=f"ticket_{ticket['id']}", 
+                       disabled=is_locked_by_other,
+                       use_container_width=True):
+                handle_ticket_selection(ticket['id'])
     
     # Center Panel: Chat
     with col2:
@@ -356,7 +382,8 @@ def logout():
     # Unlock current ticket if support user
     if st.session_state.role == "support" and st.session_state.selected_ticket:
         try:
-            requests.patch(f"http://localhost:8000/tickets/{st.session_state.selected_ticket}/unlock?agent_id={st.session_state.user}")
+            headers = {"Authorization": f"Bearer {st.session_state.token}"} if st.session_state.token else {}
+            requests.patch(f"http://localhost:8000/tickets/{st.session_state.selected_ticket}/unlock?agent_id={st.session_state.user}", headers=headers)
         except:
             pass
     
@@ -364,6 +391,7 @@ def logout():
     st.session_state.page = "login"
     st.session_state.user = None
     st.session_state.role = None
+    st.session_state.token = None
     st.session_state.selected_ticket = None
     st.session_state.messages = []
     if "ai_response" in st.session_state:
@@ -379,7 +407,7 @@ def get_tickets():
     now = datetime.now()
     if (now - st.session_state.last_refresh).seconds > 30 or not st.session_state.tickets_cache:
         try:
-            response = requests.get("http://localhost:8000/tickets/", timeout=5)
+            response = api_request("GET", "http://localhost:8000/tickets/")
             if response.status_code == 200:
                 st.session_state.tickets_cache = response.json()
                 st.session_state.last_refresh = now
@@ -390,14 +418,14 @@ def get_tickets():
 
 def get_messages(ticket_id):
     try:
-        response = requests.get(f"http://localhost:8000/messages/{ticket_id}/messages", timeout=5)
+        response = api_request("GET", f"http://localhost:8000/messages/{ticket_id}/messages")
         return response.json() if response.status_code == 200 else []
     except:
         return []
 
 def get_similar_tickets(ticket_id):
     try:
-        response = requests.get(f"http://localhost:8000/tickets/{ticket_id}/similar", timeout=5)
+        response = api_request("GET", f"http://localhost:8000/tickets/{ticket_id}/similar")
         return response.json() if response.status_code == 200 else []
     except:
         return []
@@ -406,13 +434,13 @@ def handle_ticket_selection(ticket_id):
     # Unlock previous ticket
     if st.session_state.selected_ticket and st.session_state.selected_ticket != ticket_id:
         try:
-            requests.patch(f"http://localhost:8000/tickets/{st.session_state.selected_ticket}/unlock?agent_id={st.session_state.user}")
+            api_request("PATCH", f"http://localhost:8000/tickets/{st.session_state.selected_ticket}/unlock?agent_id={st.session_state.user}")
         except:
             pass
     
     # Lock new ticket
     try:
-        response = requests.patch(f"http://localhost:8000/tickets/{ticket_id}/lock?agent_id={st.session_state.user}")
+        response = api_request("PATCH", f"http://localhost:8000/tickets/{ticket_id}/lock?agent_id={st.session_state.user}")
         if response.status_code == 200:
             st.session_state.selected_ticket = ticket_id
             st.rerun()
@@ -432,7 +460,7 @@ def generate_ai_response(ticket_id, messages):
     }
     
     try:
-        response = requests.post("http://localhost:8000/ai/generate-response", json=ai_request, timeout=10)
+        response = api_request("POST", "http://localhost:8000/ai/generate-response", json=ai_request)
         if response.status_code == 200:
             st.session_state.ai_response = response.json()
             st.rerun()
@@ -444,7 +472,7 @@ def generate_ai_response(ticket_id, messages):
 def send_response(ticket_id, message):
     message_data = {"sender_type": "agent", "message": message}
     try:
-        response = requests.post(f"http://localhost:8000/messages/{ticket_id}/messages", json=message_data)
+        response = api_request("POST", f"http://localhost:8000/messages/{ticket_id}/messages", json=message_data)
         if response.status_code == 200:
             st.success("Response sent successfully!")
             # Clear AI response and refresh
