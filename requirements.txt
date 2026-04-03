@@ -1,0 +1,23 @@
+--only-binary=:all:
+
+# Core numerical (must be pinned)
+numpy==1.26.4
+
+# LangChain stack (pin for stability)
+langchain==0.2.16
+langchain-community==0.2.16
+langchain-huggingface==0.0.3
+langchain-chroma==0.1.2
+
+# Vector DB
+chromadb==0.5.5
+
+# Embeddings
+sentence-transformers==2.7.0
+torch==2.1.2   # more stable for Lambda
+
+# File parsing
+pypdf==4.2.0
+docx2txt==0.9
+openpyxl==3.1.2
+pandas==2.2.2
