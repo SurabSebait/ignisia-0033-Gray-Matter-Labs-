@@ -1,0 +1,14 @@
+{
+  "Records": [
+    {
+      "s3": {
+        "bucket": {
+          "name": "ignisia-raw"
+        },
+        "object": {
+          "key": "raw/test.pdf"
+        }
+      }
+    }
+  ]
+}

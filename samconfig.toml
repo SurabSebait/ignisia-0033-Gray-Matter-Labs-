@@ -1,0 +1,13 @@
+version = 0.1
+
+[default.deploy.parameters]
+stack_name = "vector-embedder-v12"
+resolve_s3 = true
+s3_prefix = "vector-embedder-v12"
+region = "eu-north-1"
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "SourceBucketName=\"ingestion-ignisia\" DestinationBucketName=\"loader-ignisia\" EmbedModel=\"sentence-transformers/all-MiniLM-L6-v2\" ChromaCollectionPrefix=\"docs\" ChunkSize=\"1000\" ChunkOverlap=\"200\""
+image_repositories = ["EmbeddingFunction=135808941430.dkr.ecr.eu-north-1.amazonaws.com/vectorembedderv121b8c529f/embeddingfunction600c53bcrepo"]
+
+[default.global.parameters]
+region = "eu-north-1"

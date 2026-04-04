@@ -1,7 +1,10 @@
---only-binary=:all:
-
 # Core numerical (must be pinned)
+
+--only-binary :all:  # force binary wheels for all packages to avoid build issues
 numpy==1.26.4
+
+# scikit-learn pinned to a version with manylinux wheel for py3.11
+scikit-learn==1.2.2
 
 # LangChain stack (pin for stability)
 langchain==0.2.16
@@ -14,7 +17,7 @@ chromadb==0.5.5
 
 # Embeddings
 sentence-transformers==2.7.0
-torch==2.1.2   # more stable for Lambda
+torch==2.3.1   # more stable for Lambda
 
 # File parsing
 pypdf==4.2.0

@@ -73,7 +73,7 @@ def process_object(source_bucket: str, object_key: str, ext: str) -> str:
   Returns the S3 key of the uploaded zip.
   """
   # Lazy imports keep cold-start latency manageable and isolate heavy deps.
-  from document_parser import parse_file
+  from parser import parse_file
   from embedder import build_chroma_index
 
   with tempfile.TemporaryDirectory(dir="/tmp") as work_dir:
@@ -84,13 +84,7 @@ def process_object(source_bucket: str, object_key: str, ext: str) -> str:
       logger.info("Downloading to %s", local_file)
 
       # Commenting following line for local testing
-    #   s3.download_file(source_bucket, object_key, str(local_file))
-
-      local_test_file = "test.pdf"
-      shutil.copy(local_test_file, local_file)
-
-
-
+      s3.download_file(source_bucket, object_key, str(local_file))
 
       # 2. Parse into LangChain Documents
       docs = parse_file(local_file, ext)
@@ -114,16 +108,8 @@ def process_object(source_bucket: str, object_key: str, ext: str) -> str:
       #    Mirror the source key path, swap extension → _chroma.zip
       dest_key = _build_dest_key(object_key)
 
-      # Commenting out following upload for local testing
-    #   s3.upload_file(str(zip_path), DEST_BUCKET, dest_key)
+      s3.upload_file(str(zip_path), DEST_BUCKET, dest_key)
     
-      local_output_dir = Path("local_output")
-      local_output_dir.mkdir(exist_ok=True)
-
-      local_output_path = local_output_dir / Path(dest_key).name
-      shutil.copy(zip_path, local_output_path)
-
-      logger.info("Saved locally %s", local_output_path)
 
   return dest_key
 

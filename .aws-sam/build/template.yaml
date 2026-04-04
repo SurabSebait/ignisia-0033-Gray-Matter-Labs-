@@ -1,0 +1,97 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: 'Lambda that parses documents, generates embeddings, builds a ChromaDB
+  index, and uploads it to another bucket
+
+  '
+Parameters:
+  SourceBucketName:
+    Type: String
+    Description: Existing S3 bucket for raw documents (e.g. ingestion-ignisia)
+  DestinationBucketName:
+    Type: String
+    Description: Existing S3 bucket for embeddings (e.g. loader-ignisia)
+  EmbedModel:
+    Type: String
+    Default: sentence-transformers/all-MiniLM-L6-v2
+  ChromaCollectionPrefix:
+    Type: String
+    Default: docs
+  ChunkSize:
+    Type: Number
+    Default: 1000
+  ChunkOverlap:
+    Type: Number
+    Default: 200
+Globals:
+  Function:
+    Timeout: 900
+    MemorySize: 3008
+    Architectures:
+    - x86_64
+    EphemeralStorage:
+      Size: 5120
+    Environment:
+      Variables:
+        DEST_BUCKET:
+          Ref: DestinationBucketName
+        EMBED_MODEL:
+          Ref: EmbedModel
+        CHROMA_COLLECTION_PREFIX:
+          Ref: ChromaCollectionPrefix
+        CHUNK_SIZE:
+          Ref: ChunkSize
+        CHUNK_OVERLAP:
+          Ref: ChunkOverlap
+        TRANSFORMERS_CACHE: /tmp/hf_cache
+        HF_HOME: /tmp/hf_cache
+Resources:
+  EmbeddingLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: lambda.amazonaws.com
+          Action: sts:AssumeRole
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+      - PolicyName: S3AccessPolicy
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - s3:GetObject
+            - s3:HeadObject
+            Resource:
+              Fn::Sub: arn:aws:s3:::${SourceBucketName}/*
+          - Effect: Allow
+            Action:
+            - s3:PutObject
+            Resource:
+              Fn::Sub: arn:aws:s3:::${DestinationBucketName}/*
+  EmbeddingFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      PackageType: Image
+      Role:
+        Fn::GetAtt:
+        - EmbeddingLambdaRole
+        - Arn
+      ImageUri: embeddingfunction:v1
+    Metadata:
+      DockerContext: C:\IgnisiaLambda
+      DockerTag: v1
+      Dockerfile: Dockerfile
+      SamResourceId: EmbeddingFunction
+Outputs:
+  LambdaFunctionArn:
+    Description: ARN of the embedding Lambda function
+    Value:
+      Fn::GetAtt:
+      - EmbeddingFunction
+      - Arn

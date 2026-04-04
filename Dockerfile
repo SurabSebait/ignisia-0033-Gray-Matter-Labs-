@@ -3,6 +3,9 @@ FROM public.ecr.aws/lambda/python:3.11
 # Install system dependencies (needed for ML libs)
 RUN yum install -y gcc gcc-c++ make
 
+# Upgrade pip/tools and install wheel
+RUN pip install --upgrade pip setuptools wheel
+
 # Copy requirements
 COPY requirements.txt .
 

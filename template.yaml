@@ -2,27 +2,27 @@ AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 
 Description: >
-  S3-triggered Lambda that parses documents, generates embeddings,
+  Lambda that parses documents, generates embeddings,
   builds a ChromaDB index, and uploads it to another bucket
 
-
+# ── PARAMETERS ─────────────────────────────────────────
 Parameters:
   SourceBucketName:
     Type: String
-    Default: ignisia-raw
+    Description: Existing S3 bucket for raw documents (e.g. ingestion-ignisia)
 
   DestinationBucketName:
     Type: String
-    Default: ignisia-vector
-  
+    Description: Existing S3 bucket for embeddings (e.g. loader-ignisia)
+
   EmbedModel:
     Type: String
     Default: sentence-transformers/all-MiniLM-L6-v2
 
   ChromaCollectionPrefix:
     Type: String
-    Default: docs 
-  
+    Default: docs
+
   ChunkSize:
     Type: Number
     Default: 1000
@@ -31,7 +31,7 @@ Parameters:
     Type: Number
     Default: 200
 
-  
+# ── GLOBALS ────────────────────────────────────────────
 Globals:
   Function:
     Timeout: 900
@@ -50,27 +50,18 @@ Globals:
         TRANSFORMERS_CACHE: /tmp/hf_cache
         HF_HOME: /tmp/hf_cache
 
+# ── RESOURCES ─────────────────────────────────────────
 Resources:
-  SourceBucket:
-    Type: AWS::S3::Bucket 
-    Properties:
-      BucketName: !Ref SourceBucketName
-
-  DestinationBucket:
-    Type: AWS::S3::Bucket 
-    Properties:
-      BucketName: !Ref DestinationBucketName
-
   EmbeddingLambdaRole:
-    Type: AWS::IAM::Role 
+    Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
           - Effect: Allow
             Principal:
-              Service: lambda.amazonaws.com 
-            Action: sts:AssumeRole 
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
 
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
@@ -79,14 +70,15 @@ Resources:
         - PolicyName: S3AccessPolicy
           PolicyDocument:
             Version: "2012-10-17"
-            Statement: 
+            Statement:
+              # Read from source bucket
               - Effect: Allow
                 Action:
                   - s3:GetObject
                   - s3:HeadObject
                 Resource: !Sub "arn:aws:s3:::${SourceBucketName}/*"
 
-              # Writing to destination bucket
+              # Write to destination bucket
               - Effect: Allow
                 Action:
                   - s3:PutObject
@@ -95,41 +87,17 @@ Resources:
   EmbeddingFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: ignisia-embedding-pipeline
+      # ❗ DO NOT hardcode FunctionName
       PackageType: Image
-      Role: !GetAtt EmbeddingLambdaRole.Arn 
+      Role: !GetAtt EmbeddingLambdaRole.Arn
 
-      Events:
-        S3Trigger:
-          Type: S3
-          Properties:
-            Bucket: !Ref SourceBucket
-            Events:
-              - s3:ObjectCreated:*
-
-            Filter:
-              S3Key:
-                Rules:
-                  - Name: prefix
-                    Value: raw/
-
-    Metadata: 
+    Metadata:
       Dockerfile: Dockerfile
       DockerContext: .
       DockerTag: v1
 
-
+# ── OUTPUTS ─────────────────────────────────────────
 Outputs:
   LambdaFunctionArn:
-    Value: !GetAtt EmbeddingFunction.Arn 
-
-  SourceBucketName:
-    Value: !Ref SourceBucket
-
-  DestinationBucketName:
-    Value: !Ref DestinationBucket
-
-
-
-
-  
+    Description: ARN of the embedding Lambda function
+    Value: !GetAtt EmbeddingFunction.Arn
