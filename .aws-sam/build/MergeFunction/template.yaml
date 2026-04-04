@@ -1,0 +1,57 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+
+Resources:
+
+  MergeLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+
+      Policies:
+        - PolicyName: SSMAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ssm:SendCommand
+                Resource: "*"
+
+  MergeFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: ignisia-merge-trigger
+      Runtime: python3.11
+      Handler: lambda_function.lambda_handler
+      CodeUri: .
+      Role: !GetAtt MergeLambdaRole.Arn
+
+      Environment:
+        Variables:
+          EC2_INSTANCE_ID: "your-ec2-id"
+          MASTER_CHROMA_DIR: "/opt/chroma_master"
+          MERGE_SCRIPT_PATH: "/opt/chroma_agent/ec2_merge_agent.py"
+          PYTHON_BIN: "/opt/chroma_agent/venv/bin/python"
+
+      Events:
+        S3Trigger:
+          Type: S3
+          Properties:
+            Bucket: ignisia-vector
+            Events:
+              - s3:ObjectCreated:*
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: suffix
+                    Value: _chroma.zip

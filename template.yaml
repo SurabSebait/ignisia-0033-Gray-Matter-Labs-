@@ -1,0 +1,64 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+
+Description: >
+  Lambda that listens for new Chroma zip files and triggers EC2 merge via SSM.
+
+# ── PARAMETERS ─────────────────────────────────────────
+Parameters:
+  EC2InstanceId:
+    Type: String
+    Description: EC2 instance where Chroma master DB is hosted
+
+# ── GLOBALS ───────────────────────────────────────────
+Globals:
+  Function:
+    Runtime: python3.11
+    Timeout: 60
+    MemorySize: 512
+    Environment:
+      Variables:
+        EC2_INSTANCE_ID: !Ref EC2InstanceId
+        MASTER_CHROMA_DIR: "/opt/chroma_master"
+        MERGE_SCRIPT_PATH: "/opt/chroma_agent/ec2_merge_agent.py"
+        PYTHON_BIN: "/opt/chroma_agent/venv/bin/python"
+
+# ── RESOURCES ─────────────────────────────────────────
+Resources:
+
+  MergeLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+
+      Policies:
+        - PolicyName: SSMAccessPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ssm:SendCommand
+                Resource: "*"
+
+  MergeFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: ignisia-merge-trigger
+      Handler: lambda_function.lambda_handler
+      CodeUri: .
+      Role: !GetAtt MergeLambdaRole.Arn
+
+# ── OUTPUTS ─────────────────────────────────────────
+Outputs:
+  LambdaFunctionArn:
+    Value: !GetAtt MergeFunction.Arn
