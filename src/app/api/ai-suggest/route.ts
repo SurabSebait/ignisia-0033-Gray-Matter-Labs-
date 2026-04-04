@@ -78,16 +78,13 @@ export async function POST(request: NextRequest) {
       });
 
       if (!apiRes.ok) {
-        const errorText = await apiRes.text();
-        console.error(`RAG backend error ${apiRes.status}:`, errorText);
-        throw new Error(`RAG backend returned ${apiRes.status}: ${errorText}`);
+        throw new Error(`RAG backend returned ${apiRes.status}`);
       }
 
       const dataRes = await apiRes.json();
       answer = String(dataRes.answer || "");
       sources = Array.isArray(dataRes.sources) ? dataRes.sources : [];
     } catch (err) {
-      console.error("AI suggest error:", err);
       return NextResponse.json(
         { error: (err as Error).message || "AI call failed" },
         { status: 500 },
@@ -113,7 +110,9 @@ export async function POST(request: NextRequest) {
         $set: {
           updated_at: new Date(),
           issue: prompt,
-          relevant_context: (sources as any[])
+          relevant_context: (
+            sources as Array<{ doc_id?: string; page_num?: number }>
+          )
             .filter((source) => typeof source.doc_id === "string")
             .map((source) => source.doc_id),
           resolution: answer,

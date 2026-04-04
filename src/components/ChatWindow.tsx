@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import ReactMarkdown from "react-markdown";
 
 type Message = {
   message_id: string;
@@ -10,14 +11,25 @@ type Message = {
   created_at: string;
 };
 
+type Ticket = {
+  _id: string;
+  conversation_id: string;
+  title: string;
+  issue?: string;
+  relevant_context?: string[];
+  resolution?: string;
+  // other fields...
+};
+
 type ChatWindowProps = {
   conversationId: string | null;
   currentUserId: string;
   role: "admin" | "user" | "support";
   onCitationsUpdate?: (citations: string[]) => void;
+  ticket?: Ticket | null;
 };
 
-export default function ChatWindow({ conversationId, currentUserId, role, onCitationsUpdate }: ChatWindowProps) {
+export default function ChatWindow({ conversationId, currentUserId, role, onCitationsUpdate, ticket }: ChatWindowProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
@@ -130,11 +142,83 @@ export default function ChatWindow({ conversationId, currentUserId, role, onCita
           filteredMessages.map((message) => (
             <div key={message.message_id} className={`mb-3 rounded-lg p-2 ${message.sender_id === currentUserId ? "bg-blue-50 text-blue-800" : "bg-gray-100 text-gray-800"}`}>
               <div className="text-xs text-gray-500">{message.sender_id === currentUserId ? "You" : "Other"} • {new Date(message.created_at).toLocaleTimeString()}</div>
-              <div>{message.message_text}</div>
+              <div className="text-sm leading-relaxed">
+                <ReactMarkdown
+                  components={{
+                    p: ({ children }) => <p className="mb-2">{children}</p>,
+                    ul: ({ children }) => <ul className="list-disc list-inside mb-2 ml-4">{children}</ul>,
+                    ol: ({ children }) => <ol className="list-decimal list-inside mb-2 ml-4">{children}</ol>,
+                    li: ({ children }) => <li className="mb-1">{children}</li>,
+                    table: ({ children }) => <table className="border-collapse border border-gray-300 mb-2">{children}</table>,
+                    thead: ({ children }) => <thead className="bg-gray-100">{children}</thead>,
+                    tbody: ({ children }) => <tbody>{children}</tbody>,
+                    tr: ({ children }) => <tr className="border-b border-gray-200">{children}</tr>,
+                    th: ({ children }) => <th className="border border-gray-300 px-2 py-1 text-left font-semibold">{children}</th>,
+                    td: ({ children }) => <td className="border border-gray-300 px-2 py-1">{children}</td>,
+                    code: ({ children }) => <code className="bg-gray-100 px-1 py-0.5 rounded text-xs font-mono">{children}</code>,
+                    pre: ({ children }) => <pre className="bg-gray-100 p-2 rounded mb-2 overflow-x-auto text-xs">{children}</pre>,
+                    h1: ({ children }) => <h1 className="text-lg font-bold mb-2">{children}</h1>,
+                    h2: ({ children }) => <h2 className="text-base font-bold mb-2">{children}</h2>,
+                    h3: ({ children }) => <h3 className="text-sm font-bold mb-1">{children}</h3>,
+                    blockquote: ({ children }) => <blockquote className="border-l-4 border-gray-300 pl-4 italic mb-2">{children}</blockquote>,
+                  }}
+                >
+                  {message.message_text}
+                </ReactMarkdown>
+              </div>
             </div>
           ))
         )}
       </div>
+
+      {ticket && ticket.issue && ticket.relevant_context && ticket.resolution && (
+        <div className="mt-4 rounded-lg border border-green-200 bg-green-50 p-4">
+          <h3 className="text-lg font-semibold text-green-800 mb-3">AI Resolution Summary</h3>
+          <div className="space-y-3">
+            <div>
+              <h4 className="font-medium text-green-700">Issue:</h4>
+              <p className="text-sm text-green-900 mt-1">{ticket.issue}</p>
+            </div>
+            {ticket.relevant_context.length > 0 && (
+              <div>
+                <h4 className="font-medium text-green-700">Relevant Context:</h4>
+                <ul className="list-disc list-inside text-sm text-green-900 mt-1">
+                  {ticket.relevant_context.map((context, index) => (
+                    <li key={index}>{context}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <div>
+              <h4 className="font-medium text-green-700">Resolution:</h4>
+              <div className="text-sm text-green-900 mt-1 leading-relaxed">
+                <ReactMarkdown
+                  components={{
+                    p: ({ children }) => <p className="mb-2">{children}</p>,
+                    ul: ({ children }) => <ul className="list-disc list-inside mb-2 ml-4">{children}</ul>,
+                    ol: ({ children }) => <ol className="list-decimal list-inside mb-2 ml-4">{children}</ol>,
+                    li: ({ children }) => <li className="mb-1">{children}</li>,
+                    table: ({ children }) => <table className="border-collapse border border-gray-300 mb-2">{children}</table>,
+                    thead: ({ children }) => <thead className="bg-gray-100">{children}</thead>,
+                    tbody: ({ children }) => <tbody>{children}</tbody>,
+                    tr: ({ children }) => <tr className="border-b border-gray-200">{children}</tr>,
+                    th: ({ children }) => <th className="border border-gray-300 px-2 py-1 text-left font-semibold">{children}</th>,
+                    td: ({ children }) => <td className="border border-gray-300 px-2 py-1">{children}</td>,
+                    code: ({ children }) => <code className="bg-gray-100 px-1 py-0.5 rounded text-xs font-mono">{children}</code>,
+                    pre: ({ children }) => <pre className="bg-gray-100 p-2 rounded mb-2 overflow-x-auto text-xs">{children}</pre>,
+                    h1: ({ children }) => <h1 className="text-lg font-bold mb-2">{children}</h1>,
+                    h2: ({ children }) => <h2 className="text-base font-bold mb-2">{children}</h2>,
+                    h3: ({ children }) => <h3 className="text-sm font-bold mb-1">{children}</h3>,
+                    blockquote: ({ children }) => <blockquote className="border-l-4 border-gray-300 pl-4 italic mb-2">{children}</blockquote>,
+                  }}
+                >
+                  {ticket.resolution}
+                </ReactMarkdown>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-col gap-2">
         <div className="flex gap-2">
@@ -164,7 +248,32 @@ export default function ChatWindow({ conversationId, currentUserId, role, onCita
       )}
 
       {aiResponse && (
-        <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-2 text-sm text-indigo-900">AI response: {aiResponse}</div>
+        <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-2 text-sm text-indigo-900">
+          <div className="leading-relaxed">
+            <ReactMarkdown
+              components={{
+                p: ({ children }) => <p className="mb-2">{children}</p>,
+                ul: ({ children }) => <ul className="list-disc list-inside mb-2 ml-4">{children}</ul>,
+                ol: ({ children }) => <ol className="list-decimal list-inside mb-2 ml-4">{children}</ol>,
+                li: ({ children }) => <li className="mb-1">{children}</li>,
+                table: ({ children }) => <table className="border-collapse border border-gray-300 mb-2">{children}</table>,
+                thead: ({ children }) => <thead className="bg-gray-100">{children}</thead>,
+                tbody: ({ children }) => <tbody>{children}</tbody>,
+                tr: ({ children }) => <tr className="border-b border-gray-200">{children}</tr>,
+                th: ({ children }) => <th className="border border-gray-300 px-2 py-1 text-left font-semibold">{children}</th>,
+                td: ({ children }) => <td className="border border-gray-300 px-2 py-1">{children}</td>,
+                code: ({ children }) => <code className="bg-gray-100 px-1 py-0.5 rounded text-xs font-mono">{children}</code>,
+                pre: ({ children }) => <pre className="bg-gray-100 p-2 rounded mb-2 overflow-x-auto text-xs">{children}</pre>,
+                h1: ({ children }) => <h1 className="text-lg font-bold mb-2">{children}</h1>,
+                h2: ({ children }) => <h2 className="text-base font-bold mb-2">{children}</h2>,
+                h3: ({ children }) => <h3 className="text-sm font-bold mb-1">{children}</h3>,
+                blockquote: ({ children }) => <blockquote className="border-l-4 border-gray-300 pl-4 italic mb-2">{children}</blockquote>,
+              }}
+            >
+              {aiResponse}
+            </ReactMarkdown>
+          </div>
+        </div>
       )}
     </div>
   );

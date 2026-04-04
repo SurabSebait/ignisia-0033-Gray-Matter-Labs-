@@ -9,7 +9,7 @@ import SignOutButton from "@/components/SignoutButton";
 
 export default function DashboardHome() {
   const { data: session, status } = useSession();
-  const [selectedTicket, setSelectedTicket] = useState<any>(null);
+  const [selectedTicket, setSelectedTicket] = useState<{ conversation_id: string; title: string; issue?: string; relevant_context?: string[]; resolution?: string } | null>(null);
   const [citations, setCitations] = useState<string[]>([]);
   const [newTicketTitle, setNewTicketTitle] = useState("");
   const [newTicketDesc, setNewTicketDesc] = useState("");
@@ -125,6 +125,7 @@ export default function DashboardHome() {
             currentUserId={userId}
             role={role}
             onCitationsUpdate={setCitations}
+            ticket={selectedTicket}
           />
 
           <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-3">
@@ -156,6 +157,7 @@ export default function DashboardHome() {
               currentUserId={userId}
               role={role}
               onCitationsUpdate={setCitations}
+              ticket={selectedTicket}
             />
           </div>
 
